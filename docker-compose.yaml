@@ -1,9 +1,9 @@
-name: firecrawl
+version: '3.7'
 
 x-common-service: &common-service
-  build: apps/api
   networks:
     - backend
+    - net_robot
   environment:
     - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     - REDIS_RATE_LIMIT_URL=${REDIS_URL:-redis://redis:6379}
@@ -34,7 +34,8 @@ x-common-service: &common-service
 
 services:
   playwright-service:
-    build: apps/playwright-service
+    build: 
+      context: /home/david/resources-network/.devcontainer/firecrawl/apps/playwright-service
     environment:
       - PORT=3000
       - PROXY_SERVER=${PROXY_SERVER}
@@ -43,9 +44,12 @@ services:
       - BLOCK_MEDIA=${BLOCK_MEDIA}
     networks:
       - backend
+      - net_robot
 
   api:
     <<: *common-service
+    build: 
+      context: /home/david/resources-network/.devcontainer/firecrawl/apps/api
     depends_on:
       - redis
       - playwright-service
@@ -55,6 +59,8 @@ services:
 
   worker:
     <<: *common-service
+    build: 
+      context: /home/david/resources-network/.devcontainer/firecrawl/apps/api
     depends_on:
       - redis
       - playwright-service
@@ -65,8 +71,11 @@ services:
     image: redis:alpine
     networks:
       - backend
+      - net_robot
     command: redis-server --bind 0.0.0.0
 
 networks:
   backend:
     driver: bridge
+  net_robot:
+    external: true
