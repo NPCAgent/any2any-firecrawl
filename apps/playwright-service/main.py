@@ -8,6 +8,7 @@ from os import environ
 from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse
 from playwright.async_api import Browser, async_playwright
+from playwright_stealth import stealth_async
 from pydantic import BaseModel
 from get_error import get_error
 
@@ -83,6 +84,7 @@ async def root(body: UrlModel):
         )
 
     page = await context.new_page()
+    await stealth_async(page)
 
     # Set headers if provided
     if body.headers:

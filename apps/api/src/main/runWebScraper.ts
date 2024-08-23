@@ -12,7 +12,6 @@ import { Document } from "../lib/entities";
 import { supabase_service } from "../services/supabase";
 import { Logger } from "../lib/logger";
 import { ScrapeEvents } from "../lib/scrape-events";
-import { getScrapeQueue } from "../services/queue-service";
 
 export async function startWebScraperPipeline({
   job,
@@ -135,7 +134,8 @@ export async function runWebScraper({
 
 const saveJob = async (job: Job, result: any, token: string, mode: string) => {
   try {
-    if (process.env.USE_DB_AUTHENTICATION === "true") {
+    const useDbAuthentication = process.env.USE_DB_AUTHENTICATION === 'true';
+    if (useDbAuthentication) {
       const { data, error } = await supabase_service
         .from("firecrawl_jobs")
         .update({ docs: result })
