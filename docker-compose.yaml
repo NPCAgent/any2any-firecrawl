@@ -1,13 +1,14 @@
 name: firecrawl
 
 x-common-service: &common-service
-  build: apps/api
+  build: /home/david/resources-network/.devcontainer/firecrawl/apps/api
   networks:
-    - backend
+      - backend
+      - net_robot
   environment:
     - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     - REDIS_RATE_LIMIT_URL=${REDIS_URL:-redis://redis:6379}
-    - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://playwright-service:3000}
+    - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://playwright-service:3000/html}
     - USE_DB_AUTHENTICATION=${USE_DB_AUTHENTICATION}
     - PORT=${PORT:-3002}
     - NUM_WORKERS_PER_QUEUE=${NUM_WORKERS_PER_QUEUE}
@@ -34,7 +35,7 @@ x-common-service: &common-service
 
 services:
   playwright-service:
-    build: apps/playwright-service
+    build: /home/david/resources-network/.devcontainer/firecrawl/apps/playwright-service
     environment:
       - PORT=3000
       - PROXY_SERVER=${PROXY_SERVER}
@@ -43,9 +44,18 @@ services:
       - BLOCK_MEDIA=${BLOCK_MEDIA}
     networks:
       - backend
+      - net_robot
+    shm_size: '2gb'
+    init: true
+    # ports:
+    #   - "6081:6080"
+    #   - "3004:3000"
+    cap_add:
+      - SYS_ADMIN
 
   api:
     <<: *common-service
+    build: /home/david/resources-network/.devcontainer/firecrawl/apps/api
     depends_on:
       - redis
       - playwright-service
@@ -55,6 +65,7 @@ services:
 
   worker:
     <<: *common-service
+    build: /home/david/resources-network/.devcontainer/firecrawl/apps/api
     depends_on:
       - redis
       - playwright-service
@@ -65,8 +76,11 @@ services:
     image: redis:alpine
     networks:
       - backend
+      - net_robot
     command: redis-server --bind 0.0.0.0
 
 networks:
   backend:
     driver: bridge
+  net_robot:
+    external: true
