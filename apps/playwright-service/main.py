@@ -16,6 +16,7 @@ PROXY_SERVER = environ.get("PROXY_SERVER", None)
 PROXY_USERNAME = environ.get("PROXY_USERNAME", None)
 PROXY_PASSWORD = environ.get("PROXY_PASSWORD", None)
 BLOCK_MEDIA = environ.get("BLOCK_MEDIA", "False").upper() == "TRUE"
+PLAYWRIGHT_TIMEOUT = int(environ.get("PLAYWRIGHT_TIMEOUT", "15000"))
 
 app = FastAPI()
 
@@ -23,7 +24,7 @@ class UrlModel(BaseModel):
     """Model representing the URL and associated parameters for the request."""
     url: str
     wait_after_load: int = 0
-    timeout: int = 15000
+    timeout: int = PLAYWRIGHT_TIMEOUT
     headers: dict = None
 
 browser: Browser = None
