@@ -252,11 +252,16 @@ export async function scrapSingleUrl(
 
     let customScrapedContent: FireEngineResponse | null = null;
 
-    // Check for custom scraping conditions
-    const customScraperResult = await handleCustomScraping(
-      scraperResponse.text,
-      url
-    );
+    // TODO: 3/September/2024 - Commented out and set to null due to failure when self-hosting the service.
+    // handleCustomScraping tries to search again with fire engine, which is not available when self-hosting,
+    // and overrides the result to empty without failing or warning.
+    // To replicate the issue, uncomment this line and scrape https://developers.notion.com when self-hosting.
+    
+    // const customScraperResult = await handleCustomScraping(
+    //   scraperResponse.text,
+    //   url
+    // );
+    const customScraperResult = null;
 
     if (customScraperResult) {
       switch (customScraperResult.scraper) {
