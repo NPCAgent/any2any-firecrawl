@@ -273,7 +273,8 @@ export class WebCrawler {
     let fullUrl = href;
     if (!href.startsWith("http")) {
       try {
-        fullUrl = new URL(href, this.baseUrl).toString();
+        // This is a change for pages where base url is not the initial url. Try with https://neo4j-contrib.github.io/py2neo
+        fullUrl = new URL(href, this.initialUrl).toString();
       } catch (_) {
         return null;
       }

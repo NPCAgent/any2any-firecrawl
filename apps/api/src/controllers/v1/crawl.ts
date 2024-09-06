@@ -60,7 +60,11 @@ export async function crawlController(
     }
   }
 
-  crawlerOptions.limit = Math.min(remainingCredits, crawlerOptions.limit);
+  let credits = remainingCredits;
+  if (remainingCredits === undefined) {
+    credits = Number.MAX_SAFE_INTEGER; // Set to a large number (about 9007199254740991)
+  }
+  crawlerOptions.limit = Math.min(credits, crawlerOptions.limit);
   
   const sc: StoredCrawl = {
     originUrl: req.body.url,
