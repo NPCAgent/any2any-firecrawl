@@ -4,18 +4,15 @@ import Client from "ioredis";
 export const redlock = new Redlock(
   // You should have one client for each independent redis node
   // or cluster.
-  [new Client(process.env.REDIS_RATE_LIMIT_URL)],
+  [new Client(process.env.REDIS_RATE_LIMIT_URL!)],
   {
     // The expected clock drift; for more details see:
     // http://redis.io/topics/distlock
     driftFactor: 0.01, // multiplied by lock ttl to determine drift time
 
-    // The max number of times Redlock will attempt to lock a resource
-    // before erroring.
-    retryCount: 5,
+    retryCount: 200,
 
-    // the time in ms between attempts
-    retryDelay: 100, // time in ms
+    retryDelay: 100,
 
     // the max time in ms randomly added to retries
     // to improve performance under high contention
@@ -25,5 +22,5 @@ export const redlock = new Redlock(
     // The minimum remaining time on a lock before an extension is automatically
     // attempted with the `using` API.
     automaticExtensionThreshold: 500, // time in ms
-  }
+  },
 );

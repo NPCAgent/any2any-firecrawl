@@ -1,8 +1,92 @@
+import koffi from "koffi";
+import { join } from "path";
+import "../services/sentry";
+import * as Sentry from "@sentry/node";
 
-export async function parseMarkdown(html: string) {
+import dotenv from "dotenv";
+import { logger } from "./logger";
+import { stat } from "fs/promises";
+dotenv.config();
+
+// TODO: add a timeout to the Go parser
+const goExecutablePath = join(
+  process.cwd(),
+  "sharedLibs",
+  "go-html-to-md",
+  "html-to-markdown.so",
+);
+
+class GoMarkdownConverter {
+  private static instance: GoMarkdownConverter;
+  private convert: any;
+
+  private constructor() {
+    const lib = koffi.load(goExecutablePath);
+    this.convert = lib.func("ConvertHTMLToMarkdown", "string", ["string"]);
+  }
+
+  public static async getInstance(): Promise<GoMarkdownConverter> {
+    if (!GoMarkdownConverter.instance) {
+      try {
+        await stat(goExecutablePath);
+      } catch (_) {
+        throw Error("Go shared library not found");
+      }
+      GoMarkdownConverter.instance = new GoMarkdownConverter();
+    }
+    return GoMarkdownConverter.instance;
+  }
+
+  public async convertHTMLToMarkdown(html: string): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      this.convert.async(html, (err: Error, res: string) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(res);
+        }
+      });
+    });
+  }
+}
+
+export async function parseMarkdown(
+  html: string | null | undefined,
+): Promise<string> {
+  if (!html) {
+    return "";
+  }
+
+  try {
+    if (process.env.USE_GO_MARKDOWN_PARSER == "true") {
+      const converter = await GoMarkdownConverter.getInstance();
+      let markdownContent = await converter.convertHTMLToMarkdown(html);
+
+      markdownContent = processMultiLineLinks(markdownContent);
+      markdownContent = removeSkipToContentLinks(markdownContent);
+      logger.info(`HTML to Markdown conversion using Go parser successful`);
+      return markdownContent;
+    }
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      error.message !== "Go shared library not found"
+    ) {
+      Sentry.captureException(error);
+      logger.error(
+        `Error converting HTML to Markdown with Go parser: ${error}`,
+      );
+    } else {
+      logger.warn(
+        "Tried to use Go parser, but it doesn't exist in the file system.",
+        { goExecutablePath },
+      );
+    }
+  }
+
+  // Fallback to TurndownService if Go parser fails or is not enabled
   var TurndownService = require("turndown");
-  var turndownPluginGfm = require('joplin-turndown-plugin-gfm')
-
+  var turndownPluginGfm = require("joplin-turndown-plugin-gfm");
 
   const turndownService = new TurndownService();
   turndownService.addRule("inlineLink", {
@@ -21,29 +105,20 @@ export async function parseMarkdown(html: string) {
   });
   var gfm = turndownPluginGfm.gfm;
   turndownService.use(gfm);
-  let markdownContent = "";
-  const turndownPromise = new Promise<string>((resolve, reject) => {
-    try {
-      const result = turndownService.turndown(html);
-      resolve(result);
-    } catch (error) {
-      reject("Error converting HTML to Markdown: " + error);
-    }
-  });
-
-  const timeoutPromise = new Promise<string>((resolve, reject) => {
-    const timeout = 5000; // Timeout in milliseconds
-    setTimeout(() => reject("Conversion timed out after " + timeout + "ms"), timeout);
-  });
 
   try {
-    markdownContent = await Promise.race([turndownPromise, timeoutPromise]);
+    let markdownContent = await turndownService.turndown(html);
+    markdownContent = processMultiLineLinks(markdownContent);
+    markdownContent = removeSkipToContentLinks(markdownContent);
+
+    return markdownContent;
   } catch (error) {
-    console.error(error);
+    logger.error("Error converting HTML to Markdown", { error });
     return ""; // Optionally return an empty string or handle the error as needed
   }
+}
 
-  // multiple line links
+function processMultiLineLinks(markdownContent: string): string {
   let insideLinkContent = false;
   let newMarkdownContent = "";
   let linkOpenCount = 0;
@@ -63,12 +138,14 @@ export async function parseMarkdown(html: string) {
       newMarkdownContent += char;
     }
   }
-  markdownContent = newMarkdownContent;
+  return newMarkdownContent;
+}
 
+function removeSkipToContentLinks(markdownContent: string): string {
   // Remove [Skip to Content](#page) and [Skip to content](#skip)
-  markdownContent = markdownContent.replace(
+  const newMarkdownContent = markdownContent.replace(
     /\[Skip to Content\]\(#[^\)]*\)/gi,
-    ""
+    "",
   );
-  return markdownContent;
+  return newMarkdownContent;
 }
